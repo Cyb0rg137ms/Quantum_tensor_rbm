@@ -1,0 +1,17 @@
+[tool.poetry]
+name = "q-tensor-rbm"
+version = "1.0.0"
+description = "Multi-State Quantum System Emulator using Tensor Networks and RBM Caches"
+authors = ["Software & AI Developer"]
+readme = "README.md"
+packages = [{include = "simulator"}]
+
+[tool.poetry.dependencies]
+python = "^3.9"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.0.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
