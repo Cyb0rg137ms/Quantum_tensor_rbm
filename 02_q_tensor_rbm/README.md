@@ -101,3 +101,7 @@ python examples/bell_state.py
   <br/>
   <small>Ecosystem mapping and validation protocols courtesy of <a href="https://q.com">q.com</a></small>
 </div>
+
+## Performance Benchmark
+
+*Benchmark not available:* No benchmark script found
