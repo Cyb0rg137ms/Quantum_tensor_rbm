@@ -94,8 +94,7 @@ were removed.
 
 ## CI
 
-`ci/github-actions-ci.yml` runs ruff, mypy, pytest and a quick benchmark. It sits under `ci/` because the push token
-lacks the `workflow` scope; move it to `.github/workflows/` to enable it.
+`.github/workflows/ci.yml` runs ruff, mypy, pytest and a quick benchmark on Python 3.11–3.13.
 
 ## License
 
