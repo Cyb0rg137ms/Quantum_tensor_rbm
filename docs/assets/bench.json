@@ -1,0 +1,184 @@
+{
+  "config": {
+    "seed": 0,
+    "brick_n": 16,
+    "brick_depth": 12,
+    "tfim_n": 10,
+    "quick": false
+  },
+  "agreement": [
+    {
+      "n": 10,
+      "d": 2,
+      "gates": 60,
+      "fidelity": 0.9999999999999938,
+      "max_entropy_err": 9.769962616701378e-15,
+      "max_bond": 32
+    },
+    {
+      "n": 6,
+      "d": 3,
+      "gates": 40,
+      "fidelity": 0.9999999999999969,
+      "max_entropy_err": 3.9968028886505635e-15,
+      "max_bond": 27
+    }
+  ],
+  "ghz": [
+    {
+      "n": 10,
+      "d": 10,
+      "seconds": 0.00200605699501466,
+      "mps_bytes": 131200,
+      "dense_bytes_log10": 11.204119982655925,
+      "entropy_min": 2.3025850929940455,
+      "entropy_max": 2.3025850929940455,
+      "log_d": 2.302585092994046,
+      "discarded": 0.0
+    },
+    {
+      "n": 100,
+      "d": 10,
+      "seconds": 0.017072244998416863,
+      "mps_bytes": 1571200,
+      "dense_bytes_log10": 101.20411998265593,
+      "entropy_min": 2.3025850929940455,
+      "entropy_max": 2.3025850929940455,
+      "log_d": 2.302585092994046,
+      "discarded": 0.0
+    },
+    {
+      "n": 1000,
+      "d": 10,
+      "seconds": 0.16363955700944643,
+      "mps_bytes": 15971200,
+      "dense_bytes_log10": 1001.2041199826559,
+      "entropy_min": 2.3025850929940455,
+      "entropy_max": 2.3025850929940455,
+      "log_d": 2.302585092994046,
+      "discarded": 0.0
+    }
+  ],
+  "brick": [
+    {
+      "chi": 2,
+      "true_fidelity": 0.005875006638343256,
+      "estimated_fidelity": 0.00789226681617534,
+      "seconds": 0.007558455006801523,
+      "mps_bytes": 1920,
+      "dense_bytes": 1048576,
+      "mid_entropy": 0.5093107572223518
+    },
+    {
+      "chi": 4,
+      "true_fidelity": 0.07077283658854157,
+      "estimated_fidelity": 0.07617714945280711,
+      "seconds": 0.007818541009328328,
+      "mps_bytes": 6784,
+      "dense_bytes": 1048576,
+      "mid_entropy": 1.131648398458508
+    },
+    {
+      "chi": 8,
+      "true_fidelity": 0.2956624621234114,
+      "estimated_fidelity": 0.2975407948979105,
+      "seconds": 0.0104465269978391,
+      "mps_bytes": 23168,
+      "dense_bytes": 1048576,
+      "mid_entropy": 1.7533119118127605
+    },
+    {
+      "chi": 16,
+      "true_fidelity": 0.669766664855258,
+      "estimated_fidelity": 0.6713670408044573,
+      "seconds": 0.015778507993672974,
+      "mps_bytes": 76416,
+      "dense_bytes": 1048576,
+      "mid_entropy": 2.355652220758266
+    },
+    {
+      "chi": 32,
+      "true_fidelity": 0.9203778792409889,
+      "estimated_fidelity": 0.9206795587751372,
+      "seconds": 0.032037823999417014,
+      "mps_bytes": 240256,
+      "dense_bytes": 1048576,
+      "mid_entropy": 2.82156459675159
+    },
+    {
+      "chi": 64,
+      "true_fidelity": 0.9944390425224852,
+      "estimated_fidelity": 0.9944456014229408,
+      "seconds": 0.13310880000062753,
+      "mps_bytes": 699008,
+      "dense_bytes": 1048576,
+      "mid_entropy": 3.043159504574309
+    },
+    {
+      "chi": 128,
+      "true_fidelity": 0.9998860260601309,
+      "estimated_fidelity": 0.9998860423696545,
+      "seconds": 0.2419775520102121,
+      "mps_bytes": 1747584,
+      "dense_bytes": 1048576,
+      "mid_entropy": 3.0775180435451914
+    },
+    {
+      "chi": 256,
+      "true_fidelity": 0.9999999999999996,
+      "estimated_fidelity": 1.0,
+      "seconds": 0.2678932300041197,
+      "mps_bytes": 2796160,
+      "dense_bytes": 1048576,
+      "mid_entropy": 3.0787554670741875
+    }
+  ],
+  "tfim": {
+    "n": 10,
+    "exact_energy": -12.38148999965475,
+    "ed_seconds": 0.43467620899900794,
+    "tebd": [
+      {
+        "chi": 2,
+        "energy": -12.372129110670853,
+        "rel_err": 0.0007560389730281428,
+        "seconds": 0.18448334500135388
+      },
+      {
+        "chi": 4,
+        "energy": -12.381481899556197,
+        "rel_err": 6.542103214567708e-07,
+        "seconds": 0.20089405399630778
+      },
+      {
+        "chi": 8,
+        "energy": -12.38148998503501,
+        "rel_err": 1.180773887925968e-09,
+        "seconds": 0.24404120098915882
+      },
+      {
+        "chi": 16,
+        "energy": -12.381489985804548,
+        "rel_err": 1.1186216491586727e-09,
+        "seconds": 0.3161235980078345
+      }
+    ],
+    "rbm": [
+      {
+        "alpha": 1,
+        "params": 120,
+        "energy": -12.381415592078978,
+        "rel_err": 6.0095817041408986e-06,
+        "seconds": 1.5658506199979456
+      },
+      {
+        "alpha": 2,
+        "params": 230,
+        "energy": -12.381478821834506,
+        "rel_err": 9.02784741159908e-07,
+        "seconds": 2.8879596469923854
+      }
+    ]
+  },
+  "total_s": 7.209443354004179
+}

@@ -1,46 +1,20 @@
 # Q-Tensor-RBM: MPS simulation of qudit chains, plus RBM neural quantum states
 
-A small, tested NumPy library for simulating chains of **d-level quantum systems (qudits)**:
+[![CI](https://github.com/Cyb0rg137ms/Quantum_tensor_rbm/actions/workflows/ci.yml/badge.svg)](https://github.com/Cyb0rg137ms/Quantum_tensor_rbm/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
-- **`qtensor.MPS`**: a matrix product state in mixed-canonical form with optimal SVD truncation, exact discarded-weight
-  tracking, non-adjacent gates, entanglement entropies, amplitudes, local expectations and exact sampling.
-- **`qtensor.tebd`**: real- and imaginary-time evolution using second-order Trotter.
-- **`qtensor.RBMState`**: the Carleo–Troyer restricted-Boltzmann-machine wavefunction, trained with stochastic
-  reconfiguration.
-- **`qtensor.StateVector`**: a dense reference simulator. Every MPS result is checked against it, or against exact
-  diagonalisation, in 38 tests.
+A small, tested NumPy library for d-level quantum chains: MPS with exact truncation accounting, TEBD, and a Carleo–Troyer RBM, each checked against exact references.
 
-> **v2 rewrite, read this first.** In v1, `apply_two_state_gate` **never applied the gate**. It generated random numbers
-> and fed them into an "RBM entanglement cache", and the reported "entropy" was a sum of weight magnitudes. The claim
-> that the RBM "recovers volume-law entanglement in linear memory" was false. Information discarded by truncation is
-> gone, and MPS cost grows with entanglement. v2 implements the real physics and measures where it breaks down
-> (see [LIMITATIONS](docs/LIMITATIONS.md)).
+![Measured benchmark results](docs/assets/bench.png)
 
-## Install and run
+*Figure: rendered by `python scripts/plot_bench.py` from [`docs/assets/bench.json`](docs/assets/bench.json), the raw output of `qtensor bench --seed 0 --json docs/assets/bench.json` (CPU, about 7 s).*
 
-```bash
-pip install -e ".[dev]"
-qtensor bench            # every table below (about 7 s on CPU)
-qtensor ghz --n 1000 --d 10
-python examples/bell_state.py
-pytest
-```
+## Why it matters
 
-```python
-import numpy as np
-from qtensor import MPS, dft, csum, haar_unitary
+Tensor-network simulators are easy to oversell: v1 of this repo claimed volume-law entanglement in linear memory while its gate function never applied the gate. This version implements real MPS/TEBD and RBM physics, checks every result against a dense state vector or exact diagonalisation, and **measures where MPS simulation breaks down** as well as where it succeeds.
 
-psi = MPS(n=50, d=3, max_bond=32)
-psi.apply_1site(dft(3), 0)
-for i in range(49):
-    psi.apply_2site(csum(3), i)  # qutrit GHZ, exact at chi = 3
-psi.apply_2site(haar_unitary(9, np.random.default_rng(0)), 0, 7)  # non-adjacent, routed by SWAPs
-print(psi.entropies()[:3], psi.stats.fidelity_estimate, psi.sample(4, np.random.default_rng(1)))
-```
-
-Architecture: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Measured results (`qtensor bench`, seed 0, CPU)
+## Key results
 
 **Correctness.** Untruncated MPS against the dense state vector on random Haar circuits that include non-adjacent
 gates:
@@ -83,19 +57,99 @@ dense vector, which is the volume-law wall.
 | RBM α=1, 120 params | −12.3814155921 | 6.0e-6 | 1.40 |
 | RBM α=2, 230 params | −12.3814788218 | 9.0e-7 | 2.30 |
 
-## v1 compatibility
+Reproduce:
 
-`from simulator import MultiStateQuantumSimulator, ...` still works, and all 16 original tests pass unchanged.
+```bash
+pip install -e ".[dev]"
+qtensor bench --seed 0 --json docs/assets/bench.json
+python scripts/plot_bench.py docs/assets/bench.json docs/assets/bench.png
+```
+
+## Architecture
+
+```mermaid
+flowchart LR
+    G[qtensor.gates<br/>DFT, shift, clock, CSUM, SWAP, Haar] --> M
+    G --> S
+    subgraph MPS engine
+      M[qtensor.mps.MPS] -->|move_center: QR sweeps| C[mixed-canonical form]
+      C -->|theta = A_i A_i+1, apply gate| SVD[SVD + truncate chi / cutoff]
+      SVD -->|discarded weight eps| T[TruncationStats<br/>fidelity ≈ Π(1-eps)]
+      SVD --> M
+    end
+    S[qtensor.statevector<br/>dense reference] -->|tests: fidelity, entropies| M
+    H[qtensor.models.TFIM] -->|bond terms| TE[tebd: 2nd-order Trotter<br/>real / imaginary time]
+    TE --> M
+    H -->|dense H| ED[exact diagonalisation]
+    H -->|dense H| R[qtensor.rbm: RBM ansatz<br/>exact-enumeration SR]
+    ED -->|reference E0| B[benchmarks / CLI]
+    R --> B
+    M --> B
+```
+
+More diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+
+## 60-second quickstart
+
+```bash
+pip install -e ".[dev]"
+qtensor bench            # every table above (about 7 s on CPU)
+qtensor ghz --n 1000 --d 10
+python examples/bell_state.py
+pytest
+```
+
+## Usage
+
+```python
+import numpy as np
+from qtensor import MPS, dft, csum, haar_unitary
+
+psi = MPS(n=50, d=3, max_bond=32)
+psi.apply_1site(dft(3), 0)
+for i in range(49):
+    psi.apply_2site(csum(3), i)  # qutrit GHZ, exact at chi = 3
+psi.apply_2site(haar_unitary(9, np.random.default_rng(0)), 0, 7)  # non-adjacent, routed by SWAPs
+print(psi.entropies()[:3], psi.stats.fidelity_estimate, psi.sample(4, np.random.default_rng(1)))
+```
+
+v1 compatibility: `from simulator import MultiStateQuantumSimulator, ...` still works, and all 16 original tests pass unchanged.
 `apply_two_state_gate` now really applies the gate; it defaults to `CSUM·(DFT⊗I)` when no gate is given.
 `calculate_reconstructed_entropy` returns the sum of the true bond entropies.
 
 v1's `benchmark.py` imported a function that did not exist, and `BENCHMARK_RESULTS.md` contained no measurements. Both
 were removed.
 
-## CI
+## Design decisions and trade-offs
 
-`.github/workflows/ci.yml` runs ruff, mypy, pytest and a quick benchmark on Python 3.11–3.13.
+- **Mixed-canonical MPS with optimal SVD truncation** and exact discarded-weight tracking, so `stats.fidelity_estimate` is a cheap, honest error bar (it tracks true fidelity in the brick-wall table).
+- **Non-adjacent gates routed by SWAPs**: simple and exact, but each hop costs a two-site update.
+- **Second-order Trotter TEBD** for ground states instead of DMRG: less code, with a Trotter floor near 1e-9.
+- **RBM trained by exact enumeration**: a validated reference for n ≲ 16, not a scalable VMC sampler.
+- **NumPy + LAPACK only**, no GPU backend, to keep the library small and portable.
+
+## Limitations and roadmap
+
+- MPS cost grows with entanglement; generic deep circuits are not simulated efficiently.
+- RBM uses exact enumeration (n ≲ 16) and real parameters.
+- 1-D open chains only; no PEPS, periodic boundaries or DMRG.
+- CPU / NumPy only.
+
+Roadmap: MPO/DMRG ground states, a Metropolis sampler for the RBM, and complex RBM parameters.
+
+Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+
+## Citation
+
+```bibtex
+@software{qtensorrbm2026,
+  author = {Cyb0rg137ms},
+  title  = {Q-Tensor-RBM: MPS simulation of qudit chains, plus RBM neural quantum states},
+  year   = {2026},
+  url    = {https://github.com/Cyb0rg137ms/Quantum_tensor_rbm}
+}
+```
 
 ## License
 
-MIT
+MIT, see [LICENSE](LICENSE).
