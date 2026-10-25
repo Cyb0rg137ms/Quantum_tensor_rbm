@@ -1,107 +1,155 @@
-# ⚛️ Q-Tensor-RBM: Multi-State Quantum System Emulator
+# Q-Tensor-RBM: MPS simulation of qudit chains, plus RBM neural quantum states
 
-Q-Tensor-RBM is a high-performance classical emulator for multi-state quantum systems ($d$-dimensional states / registers). It utilizes Matrix Product States (MPS) combined with a Restricted Boltzmann Machine (RBM) neural cache to represent non-local quantum correlations and volume-law entanglement in linear memory space.
+[![CI](https://github.com/Cyb0rg137ms/Quantum_tensor_rbm/actions/workflows/ci.yml/badge.svg)](https://github.com/Cyb0rg137ms/Quantum_tensor_rbm/actions/workflows/ci.yml)
+![Python](https://img.shields.io/badge/python-3.11%20%7C%203.12%20%7C%203.13-blue)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 
----
+A small, tested NumPy library for d-level quantum chains: MPS with exact truncation accounting, TEBD, and a Carleo–Troyer RBM, each checked against exact references.
 
-## 📐 Mathematical Framework
+![Measured benchmark results](docs/assets/bench.png)
 
-### 1. Matrix Product States (MPS)
-A quantum state vector of $N$ registers with dimension $d$ typically requires $d^N$ complex coefficients. MPS decomposes this exponential state vector into a chain of rank-3 tensors:
-$$|\Psi\rangle = \sum_{s_1, \dots, s_N} \operatorname{Tr}(A^{s_1}_1 A^{s_2}_2 \dots A^{s_N}_N) |s_1 s_2 \dots s_N\rangle$$
+*Figure: rendered by `python scripts/plot_bench.py` from [`docs/assets/bench.json`](docs/assets/bench.json), the raw output of `qtensor bench --seed 0 --json docs/assets/bench.json` (CPU, about 7 s).*
 
-where $A^{s_i}_i$ is a matrix of size $\chi_{i-1} \times \chi_i$, and $\chi$ is the bond dimension (representing entanglement scale).
+## Why it matters
 
-### 2. SVD Truncation & Information Loss
-When applying 2-site gates, the bond dimension grows:
-$$\chi \leftarrow \chi \cdot d$$
+Tensor-network simulators are easy to oversell: v1 of this repo claimed volume-law entanglement in linear memory while its gate function never applied the gate. This version implements real MPS/TEBD and RBM physics, checks every result against a dense state vector or exact diagonalisation, and **measures where MPS simulation breaks down** as well as where it succeeds.
 
-To prevent exponential complexity, Singular Value Decomposition (SVD) splits and truncates the bond dimension back to a fixed maximum $\chi_{\max}$:
-$$M = U S V^\dagger \approx U_{\text{trunc}} S_{\text{trunc}} V^\dagger_{\text{trunc}}$$
+## Key results
 
-This SVD truncation drops singular values $S_{\text{discarded}}$, causing a loss of non-local entanglement information.
+**Correctness.** Untruncated MPS against the dense state vector on random Haar circuits that include non-adjacent
+gates:
 
-### 3. RBM Entanglement Recovery
-Rather than discarding this correlation, Q-Tensor-RBM projects the truncated modes into a Restricted Boltzmann Machine (RBM). The probability amplitude correction for a configuration $v$ is modeled as:
-$$P(v) = \frac{1}{Z} e^{b^T v} \prod_{h=1}^H \left(1 + e^{c_h + W_h v}\right)$$
+| n | d | gates | fidelity | max entropy error |
+|---|---|---|---|---|
+| 10 | 2 | 60 | 0.999999999999994 | 9.8e-15 |
+| 6 | 3 | 40 | 0.999999999999997 | 4.0e-15 |
 
-where:
-- $v$ is the visible vector representing the physical state config.
-- $W$ represents the complex coupling weights between register sites and hidden neurons.
-- $b, c$ are the visible and hidden bias vectors.
+**Low entanglement is cheap.** A qudit GHZ state with d=10 is exact at χ = d, and every bond carries exactly ln d:
 
-During truncation, weight increments are applied via a Hebbian learning update:
-$$\Delta W_{i, p, h} \propto S_{\text{dropped}} \cdot l_p \cdot e^{i \phi}$$
+| n | seconds | MPS bytes | dense state would need |
+|---|---|---|---|
+| 10 | 0.002 | 131,200 | 10^11.2 B |
+| 100 | 0.018 | 1,571,200 | 10^101.2 B |
+| 1000 | 0.19 | 15,971,200 | 10^1001.2 B |
 
----
+**High entanglement is not cheap.** A Haar brick-wall circuit with n=16 and depth 12, compared with the exact state
+(dense size 1,048,576 B):
 
-## 🛠️ Workings & Pipeline
+| χ | true fidelity | estimate Π(1−ε) | mid-chain S | seconds | MPS bytes |
+|---|---|---|---|---|---|
+| 2 | 0.0059 | 0.0079 | 0.509 | 0.010 | 1,920 |
+| 8 | 0.2957 | 0.2975 | 1.753 | 0.016 | 23,168 |
+| 16 | 0.6698 | 0.6714 | 2.356 | 0.021 | 76,416 |
+| 32 | 0.9204 | 0.9207 | 2.822 | 0.043 | 240,256 |
+| 64 | 0.9944 | 0.9944 | 3.043 | 0.173 | 699,008 |
+| 256 | 1.0000 | 1.0000 | 3.079 | 0.413 | 2,796,160 |
+
+The discarded-weight estimate tracks the true fidelity closely. Near-exact simulation needs an MPS *larger* than the
+dense vector, which is the volume-law wall.
+
+**Ground state.** Critical TFIM, n=10, J=h=1, exact E₀ = −12.3814899997:
+
+| method | energy | rel. error | seconds |
+|---|---|---|---|
+| imaginary-time TEBD, χ=2 | −12.3721291107 | 7.6e-4 | 0.23 |
+| imaginary-time TEBD, χ=4 | −12.3814818996 | 6.5e-7 | 0.23 |
+| imaginary-time TEBD, χ=8 | −12.3814899850 | 1.2e-9 (Trotter floor) | 0.26 |
+| RBM α=1, 120 params | −12.3814155921 | 6.0e-6 | 1.40 |
+| RBM α=2, 230 params | −12.3814788218 | 9.0e-7 | 2.30 |
+
+Reproduce:
+
+```bash
+pip install -e ".[dev]"
+qtensor bench --seed 0 --json docs/assets/bench.json
+python scripts/plot_bench.py docs/assets/bench.json docs/assets/bench.png
+```
+
+## Architecture
 
 ```mermaid
-graph TD
-    A[Register State |00...0>] --> B[Apply Quantum Gates]
-    B --> C[Contract Adjacent Tensors]
-    C --> D[Perform SVD Matrix Splitting]
-    D -->|Bond Dim > max_bond| E[Truncate Singular Values]
-    E -->|Dropped Modes| F[Update RBM Entanglement Cache]
-    E -->|Retained Modes| G[Update MPS Tensors]
-    F --> H[Reconstructed State Amplitude]
-    G --> H
-    H --> I[Measure Entanglement Entropy & State]
+flowchart LR
+    G[qtensor.gates<br/>DFT, shift, clock, CSUM, SWAP, Haar] --> M
+    G --> S
+    subgraph MPS engine
+      M[qtensor.mps.MPS] -->|move_center: QR sweeps| C[mixed-canonical form]
+      C -->|theta = A_i A_i+1, apply gate| SVD[SVD + truncate chi / cutoff]
+      SVD -->|discarded weight eps| T[TruncationStats<br/>fidelity ≈ Π(1-eps)]
+      SVD --> M
+    end
+    S[qtensor.statevector<br/>dense reference] -->|tests: fidelity, entropies| M
+    H[qtensor.models.TFIM] -->|bond terms| TE[tebd: 2nd-order Trotter<br/>real / imaginary time]
+    TE --> M
+    H -->|dense H| ED[exact diagonalisation]
+    H -->|dense H| R[qtensor.rbm: RBM ansatz<br/>exact-enumeration SR]
+    ED -->|reference E0| B[benchmarks / CLI]
+    R --> B
+    M --> B
 ```
 
-1. **Gate Application**: Contracts adjacent tensors and applies generalized unitary gates (Fourier/Hadamard, CNOT, phase-shifts).
-2. **Entanglement Caching**: During SVD factorization, discarded singular vectors are mapped to the RBM visible-hidden connection weights.
-3. **Reconstructed Probability**: The total state amplitude is computed as the product of the MPS boundary contraction and the neural cache correction, preventing loss of volume-law correlations.
+More diagrams: [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
----
+## 60-second quickstart
 
-## 💎 Key Advantages
-
-- **Linear Scaling**: Memory usage scales as $O(N \cdot d \cdot \chi^2 + N \cdot d \cdot H)$ where $H$ is the number of hidden units.
-- **Volume-Law Recovery**: Standard tensor networks are limited to area-law entanglement. The RBM cache stores non-local volume-law correlations classically.
-- **Generalized State Dimension**: Simulates multi-state registers ($d > 2$), opening up advanced research on high-dimensional quantum computing.
-
----
-
-## 📦 How to Install and Run
-
-### Prerequisites
-- Python 3.9 or higher
-- [Poetry](https://python-poetry.org/) (optional)
-
-### Setup
-Navigate to the directory and install dependencies:
 ```bash
-pip install -e .
-```
-Or with Poetry:
-```bash
-poetry install
-```
-
-### Running Tests
-Run the test suite using `pytest`:
-```bash
-pytest tests/
-```
-
-### Running the Example
-To run the high-dimensional Bell State cascade example:
-```bash
+pip install -e ".[dev]"
+qtensor bench            # every table above (about 7 s on CPU)
+qtensor ghz --n 1000 --d 10
 python examples/bell_state.py
+pytest
 ```
 
----
+## Usage
 
-<div align="center">
-  <a href="https://q.com">
-    <img src="../../assets/https_q_com.png" alt="Q Logo" width="100" style="border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15);" />
-  </a>
-  <br/>
-  <small>Ecosystem mapping and validation protocols courtesy of <a href="https://q.com">q.com</a></small>
-</div>
+```python
+import numpy as np
+from qtensor import MPS, dft, csum, haar_unitary
 
-## Performance Benchmark
+psi = MPS(n=50, d=3, max_bond=32)
+psi.apply_1site(dft(3), 0)
+for i in range(49):
+    psi.apply_2site(csum(3), i)  # qutrit GHZ, exact at chi = 3
+psi.apply_2site(haar_unitary(9, np.random.default_rng(0)), 0, 7)  # non-adjacent, routed by SWAPs
+print(psi.entropies()[:3], psi.stats.fidelity_estimate, psi.sample(4, np.random.default_rng(1)))
+```
 
-*Benchmark not available:* No benchmark script found
+v1 compatibility: `from simulator import MultiStateQuantumSimulator, ...` still works, and all 16 original tests pass unchanged.
+`apply_two_state_gate` now really applies the gate; it defaults to `CSUM·(DFT⊗I)` when no gate is given.
+`calculate_reconstructed_entropy` returns the sum of the true bond entropies.
+
+v1's `benchmark.py` imported a function that did not exist, and `BENCHMARK_RESULTS.md` contained no measurements. Both
+were removed.
+
+## Design decisions and trade-offs
+
+- **Mixed-canonical MPS with optimal SVD truncation** and exact discarded-weight tracking, so `stats.fidelity_estimate` is a cheap, honest error bar (it tracks true fidelity in the brick-wall table).
+- **Non-adjacent gates routed by SWAPs**: simple and exact, but each hop costs a two-site update.
+- **Second-order Trotter TEBD** for ground states instead of DMRG: less code, with a Trotter floor near 1e-9.
+- **RBM trained by exact enumeration**: a validated reference for n ≲ 16, not a scalable VMC sampler.
+- **NumPy + LAPACK only**, no GPU backend, to keep the library small and portable.
+
+## Limitations and roadmap
+
+- MPS cost grows with entanglement; generic deep circuits are not simulated efficiently.
+- RBM uses exact enumeration (n ≲ 16) and real parameters.
+- 1-D open chains only; no PEPS, periodic boundaries or DMRG.
+- CPU / NumPy only.
+
+Roadmap: MPO/DMRG ground states, a Metropolis sampler for the RBM, and complex RBM parameters.
+
+Full list: [docs/LIMITATIONS.md](docs/LIMITATIONS.md).
+
+## Citation
+
+```bibtex
+@software{qtensorrbm2026,
+  author = {Cyb0rg137ms},
+  title  = {Q-Tensor-RBM: MPS simulation of qudit chains, plus RBM neural quantum states},
+  year   = {2026},
+  url    = {https://github.com/Cyb0rg137ms/Quantum_tensor_rbm}
+}
+```
+
+## License
+
+MIT, see [LICENSE](LICENSE).
